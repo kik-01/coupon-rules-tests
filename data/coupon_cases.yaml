@@ -1,0 +1,238 @@
+# 判定表数据（14 条）
+# 每条 = 判定表里的一行：条件（商品、券）→ 期望动作（减多少、能不能用、运费多少）
+#
+# 为什么放 YAML 而不是写在测试文件里：
+#   1. 新增一个组合只加一段数据，不碰测试逻辑，也不用改缩进
+#   2. 期望值是手算的，跟代码分开存放，避免"改代码顺手把期望值也改了"
+#   3. diff 干净，产品/研发也能看
+#
+# 金额单位一律为「分」，必须是整数；写成 128.00 这类浮点会在加载时报错（见 tests/case_loader.py）。
+
+- id: no_coupon_free_shipping
+  desc: 无券，满 99 包邮
+  items:
+  - name: 测试杯
+    category: ceramic
+    price_cents: 12800
+    qty: 1
+    is_special: false
+  coupons: []
+  payable: 12800
+  discount: 0
+  shipping: 0
+- id: no_coupon_with_shipping
+  desc: 无券，未满 99 收 12 元运费
+  items:
+  - name: 测试杯
+    category: ceramic
+    price_cents: 5000
+    qty: 1
+    is_special: false
+  coupons: []
+  payable: 6200
+  discount: 0
+  shipping: 1200
+- id: full_reduction_below
+  desc: 满 200 减 30：199.99 元不达标
+  items:
+  - name: 测试杯
+    category: ceramic
+    price_cents: 19999
+    qty: 1
+    is_special: false
+  coupons:
+  - code: F200
+    kind: full_reduction
+    threshold_cents: 20000
+    off_cents: 3000
+  payable: 19999
+  discount: 0
+  rejected:
+  - F200
+- id: full_reduction_exact
+  desc: 满 200 减 30：刚好 200 元达标
+  items:
+  - name: 测试杯
+    category: ceramic
+    price_cents: 20000
+    qty: 1
+    is_special: false
+  coupons:
+  - code: F200
+    kind: full_reduction
+    threshold_cents: 20000
+    off_cents: 3000
+  payable: 17000
+  discount: 3000
+  applied:
+  - F200
+- id: full_reduction_above
+  desc: 满 200 减 30：200.01 元达标
+  items:
+  - name: 测试杯
+    category: ceramic
+    price_cents: 20001
+    qty: 1
+    is_special: false
+  coupons:
+  - code: F200
+    kind: full_reduction
+    threshold_cents: 20000
+    off_cents: 3000
+  payable: 17001
+  discount: 3000
+- id: discount_normal
+  desc: 85 折，200 元减 30
+  items:
+  - name: 测试杯
+    category: ceramic
+    price_cents: 20000
+    qty: 1
+    is_special: false
+  coupons:
+  - code: D85
+    kind: discount
+    rate: 85
+  payable: 17000
+  discount: 3000
+- id: discount_capped
+  desc: 85 折封顶 50：1000 元本应减 150，实减 50
+  items:
+  - name: 测试杯
+    category: ceramic
+    price_cents: 100000
+    qty: 1
+    is_special: false
+  coupons:
+  - code: D85
+    kind: discount
+    rate: 85
+    cap_cents: 5000
+  payable: 95000
+  discount: 5000
+- id: discount_odd_amount
+  desc: 85 折遇上 133.33 元：13333×15%=1999.95，向下取整 1999 分
+  items:
+  - name: 测试杯
+    category: ceramic
+    price_cents: 13333
+    qty: 1
+    is_special: false
+  coupons:
+  - code: D85
+    kind: discount
+    rate: 85
+  payable: 11334
+  discount: 1999
+- id: category_hit
+  desc: 陶瓷满 100 减 20：陶瓷 120 元达标
+  items:
+  - name: 测试杯
+    category: ceramic
+    price_cents: 12000
+    qty: 1
+    is_special: false
+  coupons:
+  - code: C100
+    kind: category
+    threshold_cents: 10000
+    off_cents: 2000
+    category: ceramic
+  payable: 10000
+  discount: 2000
+- id: category_miss
+  desc: 陶瓷满 100 减 20：陶瓷只有 80 元，不达标
+  items:
+  - name: 测试杯
+    category: ceramic
+    price_cents: 8000
+    qty: 1
+    is_special: false
+  coupons:
+  - code: C100
+    kind: category
+    threshold_cents: 10000
+    off_cents: 2000
+    category: ceramic
+  payable: 9200
+  discount: 0
+  rejected:
+  - C100
+- id: category_ignores_special
+  desc: 特价陶瓷不计入品类券基数：正价 120 达标，特价 50 不算
+  items:
+  - name: 测试杯
+    category: ceramic
+    price_cents: 12000
+    qty: 1
+    is_special: false
+  - name: 测试杯
+    category: ceramic
+    price_cents: 5000
+    qty: 1
+    is_special: true
+  coupons:
+  - code: C100
+    kind: category
+    threshold_cents: 10000
+    off_cents: 2000
+    category: ceramic
+  payable: 15000
+  discount: 2000
+- id: special_not_discounted
+  desc: 特价商品不参与折扣：正价 100 与特价 100，只对正价打折
+  items:
+  - name: 测试杯
+    category: ceramic
+    price_cents: 10000
+    qty: 1
+    is_special: false
+  - name: 测试杯
+    category: ceramic
+    price_cents: 10000
+    qty: 1
+    is_special: true
+  coupons:
+  - code: D85
+    kind: discount
+    rate: 85
+  payable: 18500
+  discount: 1500
+- id: category_plus_full
+  desc: 品类券 + 满减券叠加：200 元订单减 20 减 30
+  items:
+  - name: 测试杯
+    category: ceramic
+    price_cents: 15000
+    qty: 1
+    is_special: false
+  - name: 竹制杯垫
+    category: other
+    price_cents: 5000
+    qty: 1
+  coupons:
+  - code: C100
+    kind: category
+    threshold_cents: 10000
+    off_cents: 2000
+    category: ceramic
+  - code: F200
+    kind: full_reduction
+    threshold_cents: 20000
+    off_cents: 3000
+  payable: 15000
+  discount: 5000
+- id: newuser_normal
+  desc: 新人券无门槛：100 元订单减 20
+  items:
+  - name: 测试杯
+    category: ceramic
+    price_cents: 10000
+    qty: 1
+    is_special: false
+  coupons:
+  - code: N20
+    kind: newuser
+    off_cents: 2000
+  payable: 8000
+  discount: 2000
